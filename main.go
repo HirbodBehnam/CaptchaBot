@@ -33,7 +33,7 @@ var PageIn = make(map[int]int)
 var CaptchaToCheck = make(map[int]request)
 var Config config
 var ConfigFileName string
-const Version = "0.1.0 / Build 0"
+const Version = "0.1.0 / Build 1"
 
 func main() {
 	{ //Parse arguments
