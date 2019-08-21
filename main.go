@@ -215,7 +215,10 @@ func main() {
 						qrImage := captcha.NewImage(strconv.FormatInt(int64(id), 10), digits, 200, 100)
 						var buf bytes.Buffer
 						if err := jpeg.Encode(&buf, qrImage.Paletted, nil); err != nil {
-							panic(err.Error())
+							msg := tgbotapi.NewMessage(chatID, "Error on encoding captcha.")
+							log.Println("Error on encoding captcha.", err.Error())
+							bot.Send(msg)
+							return
 						}
 						file := tgbotapi.FileBytes{Bytes: buf.Bytes(), Name: strconv.FormatInt(int64(id), 10)}
 						msg := tgbotapi.NewPhotoUpload(chatID, file)
