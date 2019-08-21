@@ -184,8 +184,8 @@ func main() {
 			// 2. The value is letters only: User is requesting a text or link. We shall send him a qr code
 			if a, err := strconv.Atoi(update.Message.Text); err == nil { //Here we have scenario 1; Every thing is a number
 				go func(userEntry int, chatID int64, id int) {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-					req := safeReadCaptchaToCheckAndDelete(update.Message.From.ID)
+					msg := tgbotapi.NewMessage(chatID, "")
+					req := safeReadCaptchaToCheckAndDelete(id)
 					if userEntry == req.CaptchaCode { //Captcha is ok
 						str, err := ReadValue(req.WantToken)
 						if err != nil {
