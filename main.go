@@ -182,21 +182,23 @@ func main() {
 			//So basically we have 2 scenarios:
 			// 1. The value passed to bot is only numbers: This means that the user is replying to a captcha
 			// 2. The value is letters only: User is requesting a text or link. We shall send him a qr code
-			if userEntry, err := strconv.Atoi(update.Message.Text); err == nil { //Here we have scenario 1; Every thing is a number
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-				req := safeReadCaptchaToCheckAndDelete(update.Message.From.ID)
-				if userEntry == req.CaptchaCode { //Captcha is ok
-					str, err := ReadValue(req.WantToken)
-					if err != nil {
-						msg.Text = "Error retrieving data from database: " + err.Error()
+			if a, err := strconv.Atoi(update.Message.Text); err == nil { //Here we have scenario 1; Every thing is a number
+				go func(userEntry int, chatID int64, id int) {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+					req := safeReadCaptchaToCheckAndDelete(update.Message.From.ID)
+					if userEntry == req.CaptchaCode { //Captcha is ok
+						str, err := ReadValue(req.WantToken)
+						if err != nil {
+							msg.Text = "Error retrieving data from database: " + err.Error()
+						} else {
+							msg.Text = str
+						}
 					} else {
-						msg.Text = str
+						msg.Text = "Captcha fail. Please try again by sending the _token_ again."
+						msg.ParseMode = "markdown"
 					}
-				} else {
-					msg.Text = "Captcha fail. Please try again by sending the _token_ again."
-					msg.ParseMode = "markdown"
-				}
-				bot.Send(msg)
+					bot.Send(msg)
+				}(a, update.Message.Chat.ID, update.Message.From.ID)
 			} else { //Here we have scenario 2; At first try to read it from database
 				if HasKey(update.Message.Text) {
 					//Prepare the QR Code
