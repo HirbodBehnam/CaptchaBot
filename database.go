@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+var mux sync.Mutex
 var db *bolt.DB
 
 //https://zupzup.org/boltdb-example/
@@ -35,8 +37,10 @@ func LoadDB(dataBaseName string) error {
 
 //Inserts a link into the database
 //Returns the ID for the link to be shared later
-func InsertValue(Value string) (string,error){
-	for{
+func InsertValue(Value string) (string, error) {
+	mux.Lock()
+	defer mux.Unlock()
+	for {
 		key := generateRandomStringAsByte()
 		hasValue := false
 		//Check if the random exists in database
@@ -45,10 +49,10 @@ func InsertValue(Value string) (string,error){
 			hasValue = check != nil
 			return nil
 		})
-		if err != nil{
-			return "",err
+		if err != nil {
+			return "", err
 		}
-		if !hasValue{ //In this case we save the string into database
+		if !hasValue { //In this case we save the string into database
 			err = db.Update(func(tx *bolt.Tx) error {
 				err = tx.Bucket([]byte("DB")).Put(key, []byte(Value))
 				if err != nil {
@@ -59,7 +63,7 @@ func InsertValue(Value string) (string,error){
 			if err != nil {
 				return "", err
 			}
-			return string(key),nil
+			return string(key), nil
 		}
 	}
 }
@@ -78,7 +82,7 @@ func HasKey(Key string) bool {
 
 //Remove a key from the database
 func RemoveKey(Key string) error {
-	if !HasKey(Key){
+	if !HasKey(Key) {
 		return fmt.Errorf("this token does not exits")
 	}
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -92,27 +96,27 @@ func RemoveKey(Key string) error {
 }
 
 //Read the value from database
-func ReadValue(Key string) (string,error) {
+func ReadValue(Key string) (string, error) {
 	var res string
 	err := db.View(func(tx *bolt.Tx) error {
 		check := tx.Bucket([]byte("DB")).Get([]byte(Key))
-		if check == nil{
+		if check == nil {
 			return fmt.Errorf("Cannot find value for " + Key)
 		}
 		res = string(check)
 		return nil
 	})
-	if err != nil{
+	if err != nil {
 		return "", err
 	}
-	return res,nil
+	return res, nil
 }
 
 //Keys are 8 letter long
-func generateRandomStringAsByte() []byte{
+func generateRandomStringAsByte() []byte {
 	rand.Seed(time.Now().UnixNano()) //Make randoms, random
 	s := ""
-	for i := 0 ; i < 8; i++{
+	for i := 0; i < 8; i++ {
 		s += string(alphabet[rand.Int31n(52)])
 	}
 	return []byte(s)
