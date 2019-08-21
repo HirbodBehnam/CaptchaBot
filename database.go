@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/boltdb/bolt"
+	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -31,7 +32,7 @@ func LoadDB(dataBaseName string) error {
 	if err != nil {
 		return fmt.Errorf("could not set up buckets, %v", err)
 	}
-	fmt.Println("DB Setup Done")
+	log.Println("DB Setup Done")
 	return nil
 }
 
@@ -93,6 +94,23 @@ func RemoveKey(Key string) error {
 		return nil
 	})
 	return err
+}
+
+//List all of the values
+func ListAllValues() (map[string]string, error) {
+	m := make(map[string]string)
+	err := db.View(func(tx *bolt.Tx) error {
+		err := tx.Bucket([]byte("DB")).ForEach(func(k, v []byte) error {
+			if len(v) > 100 {
+				m[string(k)] = string(v[:100]) + " *...* "
+			} else {
+				m[string(k)] = string(v)
+			}
+			return nil
+		})
+		return err
+	})
+	return m, err
 }
 
 //Read the value from database

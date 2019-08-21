@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -74,7 +75,7 @@ func main() {
 		panic("Cannot read the config file. (Parse Error) " + err.Error())
 	}
 
-	//
+	//Load db
 	err = LoadDB(Config.DBName)
 	if err != nil {
 		panic("Cannot access database: " + err.Error())
@@ -107,7 +108,7 @@ func main() {
 				if !checkInArray(update.Message.From.ID, Config.Admins) { //Check admin
 					msg.Text = "Welcome! Please send the token you received to get the text or the link."
 				} else {
-					msg.Text = "Hello!\nYou are the admin of this bot.\nHere is a list of commands:\n\n/add : Use this command to add a link or text. This will later result in a \"token\". Share that token to users to let them receive the text or link.\n/remove : Remove a token\n/id : Get the ID of anyone that sends it to bot. Can be used to define new admins.\n/about : Just a about screen"
+					msg.Text = "Hello!\nYou are the admin of this bot.\nHere is a list of commands:\n\n/add : Use this command to add a link or text. This will later result in a \"token\". Share that token to users to let them receive the text or link.\n/remove : Remove a token\n/list : Lists all of the tokens and values\n/id : Get the ID of anyone that sends it to bot. Can be used to define new admins.\n/about : Just a about screen"
 				}
 			case "add":
 				if !checkInArray(update.Message.From.ID, Config.Admins) { //Check admin
@@ -129,6 +130,34 @@ func main() {
 					PageIn.mux.Unlock()
 					msg.Text = "Please send the token to remove it from database"
 				}
+			case "list":
+				if !checkInArray(update.Message.From.ID, Config.Admins) { //Check admin
+					log.Println("Unauthorized access from id", update.Message.From.ID, "and username", update.Message.From.UserName, "and name", update.Message.From.FirstName, update.Message.From.LastName)
+					msg.Text = "You are not the admin of this bot!"
+				} else { //User is admin
+					go func(id int64) { //Gather all of the links
+						msg := tgbotapi.NewMessage(id, "")
+						list, err := ListAllValues()
+						if err != nil {
+							msg.Text = "Error getting the list: " + err.Error()
+						} else {
+							var sb strings.Builder
+							for k, v := range list {
+								sb.WriteString("`")
+								sb.WriteString(k)
+								sb.WriteString("`")
+								sb.WriteString(" : ")
+								sb.WriteString(v)
+								sb.WriteString("\n")
+							}
+							msg.Text = sb.String()
+							msg.ParseMode = "markdown"
+							msg.DisableWebPagePreview = true
+						}
+						bot.Send(msg)
+					}(update.Message.Chat.ID)
+					continue
+				}
 			case "cancel":
 				CaptchaToCheck.mux.Lock()
 				delete(CaptchaToCheck.CaptchaToCheck, update.Message.From.ID)
@@ -140,7 +169,7 @@ func main() {
 					PageIn.mux.Unlock()
 				}
 			case "about":
-				msg.Text = "Made by Hirbod Behnam\nGolang\nSource code at https://github.com/HirbodBehnam/CaptchaBot\nVersion " + Version
+				msg.Text = "Made by Hirbod Behnam\nGolang\nSource code at https://github.com/HirbodBehnam/CaptchaBot\nBackend version " + Version
 			case "id": //Send the id to anyone
 				msg.Text = strconv.FormatInt(int64(update.Message.From.ID), 10)
 			default:
