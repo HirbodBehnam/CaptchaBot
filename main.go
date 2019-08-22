@@ -10,23 +10,34 @@ import (
 	"image/jpeg"
 	"io/ioutil"
 	"log"
+	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type config struct {
-	Token  string
-	DBName string
-	Admins []int
+	Token     string
+	DBName    string
+	Admins    []int
+	Recaptcha recaptchaConfig `json:"recaptcha,nill"`
 }
-
+type recaptchaConfig struct {
+	V2         bool
+	PrivateKey string
+	PublicKey  string
+	Domain     string
+	Port       int
+	MinScore   float32
+}
 type request struct {
 	CaptchaCode int
 	WantToken   string
 }
-
 type sPageIn struct {
 	mux sync.Mutex //Nearly everywhere we are writing to PageIn. Also when reading, instantly we write to it
 	//This is a variable to define what "Admins" are going to do; The key is the ID of the admin and the value is the page they want to do. Here is the list of the pages
@@ -35,18 +46,69 @@ type sPageIn struct {
 	// 2: Admin whats to remove a token
 	PageIn map[int]int
 }
-
 type sCaptchaToCheck struct {
 	mux            sync.Mutex //We write to it, or instantly delete it after reading from it
 	CaptchaToCheck map[int]request
 }
+type recaptchaResponse struct {
+	Success     bool      `json:"success"`
+	Score       float32   `json:"score"`
+	Action      string    `json:"action"`
+	ChallengeTS time.Time `json:"challenge_ts"`
+	Hostname    string    `json:"hostname"`
+	ErrorCodes  []string  `json:"error-codes"`
+}
 
+var bot *tgbotapi.BotAPI
 var PageIn sPageIn
 var CaptchaToCheck sCaptchaToCheck
 var Config config
 var ConfigFileName string
 
+//1 is normal
+//2 is recaptcha v2
+//3 is recaptcha v3
+var CaptchaMode = byte(1)
+
+//Web stuff
+const (
+	pageHead = `<html><head>
+	<style>.error{color:#ff0000;} div{margin: auto; text-align: center;} .ack{color:#0000ff;} p{text-align: center;}</style><title>Recaptcha Test</title></head>
+<body><div style="width:100%"><div style="width: 50%;margin: 0 auto;">`
+	pageTopV2 = `<p>Please check the dialog and choose OK after</p><form action="/" method="POST">
+	    <script src="https://www.google.com/recaptcha/api.js"></script>
+		<div style="" class="g-recaptcha" data-sitekey="%s"></div>
+		<input style="display: none" name="chatid" type="text" value="%s">
+		<input style="display: none" name="dbtoken" type="text" value="%s">
+		<div><input type="submit" name="button" value="Ok"></div>
+</form>`
+	pageTopV3 = `<script src="https://www.google.com/recaptcha/api.js?render=%s"></script>
+  	<script>
+  	grecaptcha.ready(function() {
+		grecaptcha.execute('%s', {action: 'homepage'}).then(function(token) {
+			document.getElementById("token").value = token;
+			document.getElementById("myForm").submit();
+		});
+	});
+	</script>
+	<p>Please wait...</p>
+	<form id="myForm" action="/" method="POST">
+	<input style="display: none" id="token" name="g-recaptcha-response" type="text">
+	<input style="display: none" name="chatid" type="text" value="%s">
+	<input style="display: none" name="dbtoken" type="text" value="%s">
+</form>
+	`
+	pageBottom = `</div></div></body></html>`
+	anError    = `<p class="error">%s</p>`
+	anAck      = `<p class="ack">%s</p>`
+)
+const recaptchaURLLocal = "http://%s:%d/?chatid=%d&dbtoken=%s"
+const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
 const Version = "0.2.0 / Build 2"
+
+func init() {
+	rand.Seed(time.Now().UnixNano()) //Make randoms, random
+}
 
 func main() {
 	{ //Parse arguments
@@ -65,23 +127,44 @@ func main() {
 		}
 	}
 
-	//At first read the config file
-	confF, err := ioutil.ReadFile(ConfigFileName)
-	if err != nil {
-		panic("Cannot read the config file. (io Error) " + err.Error())
+	{
+		//At first read the config file
+		confF, err := ioutil.ReadFile(ConfigFileName)
+		if err != nil {
+			panic("Cannot read the config file. (io Error) " + err.Error())
+		}
+		err = json.Unmarshal(confF, &Config)
+		if err != nil {
+			panic("Cannot read the config file. (Parse Error) " + err.Error())
+		}
+		//Load captcha settings
+		if Config.Recaptcha.PublicKey != "" {
+			if Config.Recaptcha.V2 {
+				CaptchaMode = 2
+			} else {
+				CaptchaMode = 3
+			}
+		}
 	}
-	err = json.Unmarshal(confF, &Config)
-	if err != nil {
-		panic("Cannot read the config file. (Parse Error) " + err.Error())
+
+	//If needed fire up the http server
+	if CaptchaMode != 1 {
+		http.HandleFunc("/", homePage)
+		log.Println("Starting the web server on port", Config.Recaptcha.Port)
+		go func() {
+			if err := http.ListenAndServe(":"+strconv.FormatInt(int64(Config.Recaptcha.Port), 10), nil); err != nil {
+				log.Fatal("failed to start server", err)
+			}
+		}()
 	}
 
 	//Load db
-	err = LoadDB(Config.DBName)
+	err := LoadDB(Config.DBName)
 	if err != nil {
 		panic("Cannot access database: " + err.Error())
 	}
 	//Setup the bot
-	bot, err := tgbotapi.NewBotAPI(Config.Token)
+	bot, err = tgbotapi.NewBotAPI(Config.Token)
 	if err != nil {
 		panic("Cannot initialize the bot: " + err.Error())
 	}
@@ -101,6 +184,7 @@ func main() {
 		if update.Message == nil { // ignore any non-Message Updates
 			continue
 		}
+		//Check if message is command
 		if update.Message.IsCommand() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 			switch update.Message.Command() {
@@ -141,18 +225,22 @@ func main() {
 						if err != nil {
 							msg.Text = "Error getting the list: " + err.Error()
 						} else {
-							var sb strings.Builder
-							for k, v := range list {
-								sb.WriteString("`")
-								sb.WriteString(k)
-								sb.WriteString("`")
-								sb.WriteString(" : ")
-								sb.WriteString(v)
-								sb.WriteString("\n")
+							if len(list) == 0 {
+								msg.Text = "The database is empty!"
+							} else {
+								var sb strings.Builder
+								for k, v := range list {
+									sb.WriteString("`")
+									sb.WriteString(k)
+									sb.WriteString("`")
+									sb.WriteString(" : ")
+									sb.WriteString(v)
+									sb.WriteString("\n")
+								}
+								msg.Text = sb.String()
+								msg.ParseMode = "markdown"
+								msg.DisableWebPagePreview = true
 							}
-							msg.Text = sb.String()
-							msg.ParseMode = "markdown"
-							msg.DisableWebPagePreview = true
 						}
 						bot.Send(msg)
 					}(update.Message.Chat.ID)
@@ -201,7 +289,8 @@ func main() {
 					if err != nil {
 						msg.Text = "Error in deleting this token from database: " + err.Error()
 					} else {
-						msg.Text = "Successfully deleted token " + update.Message.Text + " from database."
+						msg.Text = "Successfully deleted token `" + update.Message.Text + "` from database."
+						msg.ParseMode = "markdown"
 					}
 					bot.Send(msg)
 					continue
@@ -232,29 +321,40 @@ func main() {
 				if HasKey(update.Message.Text) {
 					//Prepare the QR Code
 					go func(message string, id int, chatID int64) {
-						digits := captcha.RandomDigits(8)
-						{ //Convert digits to int to save 4 bits on every user :|
-							numDigits := 0
-							for i := 0; i < 8; i++ { //Build the number
-								numDigits *= 10
-								numDigits += int(digits[i])
+						switch CaptchaMode {
+						case 1: //Send a normal captcha
+							digits := captcha.RandomDigits(8)
+							{ //Convert digits to int to save 4 bits on every user :|
+								numDigits := 0
+								for i := 0; i < 8; i++ { //Build the number
+									numDigits *= 10
+									numDigits += int(digits[i])
+								}
+								CaptchaToCheck.mux.Lock()
+								CaptchaToCheck.CaptchaToCheck[id] = request{numDigits, message}
+								CaptchaToCheck.mux.Unlock()
 							}
-							CaptchaToCheck.mux.Lock()
-							CaptchaToCheck.CaptchaToCheck[id] = request{numDigits, message}
-							CaptchaToCheck.mux.Unlock()
-						}
-						qrImage := captcha.NewImage(strconv.FormatInt(int64(id), 10), digits, 200, 100)
-						var buf bytes.Buffer
-						if err := jpeg.Encode(&buf, qrImage.Paletted, nil); err != nil {
-							msg := tgbotapi.NewMessage(chatID, "Error on encoding captcha.")
-							log.Println("Error on encoding captcha.", err.Error())
+							qrImage := captcha.NewImage(strconv.FormatInt(int64(id), 10), digits, 200, 100)
+							var buf bytes.Buffer
+							if err := jpeg.Encode(&buf, qrImage.Paletted, nil); err != nil {
+								msg := tgbotapi.NewMessage(chatID, "Error on encoding captcha.")
+								log.Println("Error on encoding captcha.", err.Error())
+								bot.Send(msg)
+								return
+							}
+							file := tgbotapi.FileBytes{Bytes: buf.Bytes(), Name: strconv.FormatInt(int64(id), 10)}
+							msg := tgbotapi.NewPhotoUpload(chatID, file)
+							msg.Caption = "Please enter the number in this image\n/cancel to turn back"
 							bot.Send(msg)
-							return
+						case 2:
+							msg := tgbotapi.NewMessage(chatID, "Open this url and complete the captcha:\n"+fmt.Sprintf(recaptchaURLLocal, Config.Recaptcha.Domain, Config.Recaptcha.Port, chatID, message))
+							msg.DisableWebPagePreview = true
+							bot.Send(msg)
+						case 3:
+							msg := tgbotapi.NewMessage(chatID, "Open this url and wait:\n"+fmt.Sprintf(recaptchaURLLocal, Config.Recaptcha.Domain, Config.Recaptcha.Port, chatID, message))
+							msg.DisableWebPagePreview = true
+							bot.Send(msg)
 						}
-						file := tgbotapi.FileBytes{Bytes: buf.Bytes(), Name: strconv.FormatInt(int64(id), 10)}
-						msg := tgbotapi.NewPhotoUpload(chatID, file)
-						msg.Caption = "Please enter the number in this image\n/cancel to turn back"
-						bot.Send(msg)
 					}(update.Message.Text, update.Message.From.ID, update.Message.Chat.ID)
 				} else { //The link is broken
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "The token you provided is in valid or does not exists.")
@@ -263,6 +363,87 @@ func main() {
 			}
 		}
 	}
+}
+
+func processRequest(request *http.Request) bool {
+	recaptchaResponse := request.FormValue("g-recaptcha-response")
+	result, err := checkRecaptcha("127.0.0.1", recaptchaResponse)
+	if err != nil {
+		log.Println("recaptcha server error", err)
+	}
+	if CaptchaMode == 2 {
+		return result.Success
+	} else {
+		return result.Score >= Config.Recaptcha.MinScore
+	}
+}
+
+//Load the page
+func homePage(writer http.ResponseWriter, request *http.Request) {
+	err := request.ParseForm() // Must be called before writing response
+	id := request.FormValue("chatid")
+	token := request.FormValue("dbtoken")
+	fmt.Fprint(writer, pageHead)
+	if err != nil {
+		fmt.Fprintf(writer, fmt.Sprintf(anError, err))
+	} else {
+		_, buttonClicked := request.Form["g-recaptcha-response"]
+		if buttonClicked {
+			if processRequest(request) {
+				a, _ := strconv.Atoi(id)
+				if CaptchaMode == 2 {
+					fmt.Fprint(writer, fmt.Sprintf(anAck, "Recaptcha was correct! Sent the code via telegram!"))
+					go sendValueWithBot(int64(a), token)
+				} else {
+					fmt.Fprint(writer, fmt.Sprintf(anAck, "Sent the code via telegram!"))
+					go sendValueWithBot(int64(a), token)
+				}
+			} else {
+				if CaptchaMode == 2 {
+					fmt.Fprintf(writer, fmt.Sprintf(anError, "Recaptcha was incorrect; try again."))
+				} else {
+					fmt.Fprintf(writer, fmt.Sprintf(anError, "Unfortuatly you cannot access this right now."))
+				}
+			}
+		} else {
+			if CaptchaMode == 2 {
+				fmt.Fprint(writer, fmt.Sprintf(pageTopV2, Config.Recaptcha.PublicKey, id, token))
+			} else {
+				fmt.Fprint(writer, fmt.Sprintf(pageTopV3, Config.Recaptcha.PublicKey, Config.Recaptcha.PublicKey, id, token))
+			}
+		}
+	}
+	fmt.Fprint(writer, pageBottom)
+}
+func checkRecaptcha(remoteip, response string) (r recaptchaResponse, err error) {
+	resp, err := http.PostForm(recaptchaServerName,
+		url.Values{"secret": {Config.Recaptcha.PrivateKey}, "remoteip": {remoteip}, "response": {response}})
+	if err != nil {
+		log.Printf("Post error: %s\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Read error: could not read body: %s", err)
+		return
+	}
+	err = json.Unmarshal(body, &r)
+	if err != nil {
+		log.Println("Read error: got invalid JSON: %s", err)
+		return
+	}
+	return
+}
+func sendValueWithBot(id int64, token string) {
+	value, err := ReadValue(token)
+	msg := tgbotapi.NewMessage(id, "")
+	if err == nil {
+		msg.Text = value
+	} else {
+		msg.Text = "Error getting value from database: " + err.Error()
+	}
+	bot.Send(msg)
 }
 
 //With mutex, read the captcha from CaptchaToCheck and delete the value after

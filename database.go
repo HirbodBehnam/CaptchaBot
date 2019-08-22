@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"sync"
-	"time"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -132,7 +131,6 @@ func ReadValue(Key string) (string, error) {
 
 //Keys are 8 letter long
 func generateRandomStringAsByte() []byte {
-	rand.Seed(time.Now().UnixNano()) //Make randoms, random
 	s := ""
 	for i := 0; i < 8; i++ {
 		s += string(alphabet[rand.Int31n(52)])
