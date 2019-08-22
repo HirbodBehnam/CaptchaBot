@@ -45,5 +45,6 @@ As an admin you can use one of these commands to update the database:
 * `/add` : Adds a string or link to database and returns the token to the admin. Users can use the token to access the links or texts.
 * `/remove` : Remove a string or text from database by it's token.
 * `/cancel` : Cancel removing or adding a text
+* `/list` : Lists all of the keys and values in database
 
 Also admins can also send a token to bot to access it's data.
