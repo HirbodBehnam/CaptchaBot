@@ -46,7 +46,7 @@ var CaptchaToCheck sCaptchaToCheck
 var Config config
 var ConfigFileName string
 
-const Version = "0.1.0 / Build 1"
+const Version = "0.2.0 / Build 2"
 
 func main() {
 	{ //Parse arguments
