@@ -57,10 +57,12 @@ After you got your ID, enter it into the `Admins` array in `config.json`. For ex
 
 After you set the new admins you need to restart the bot.
 ### Defining The Captcha Mode
-As described above there are 3 different captcha modes
+As described above there are 2 different captcha modes
 #### Normal Captcha
 You do not need to do anything more. Just move to next step
 #### Recaptcha
+At first, thanks to [this](https://github.com/dpapathanasiou/go-recaptcha) project I implemented a custom recaptcha API in my own app.
+
 Before configuring the bot you should do three things:
 * Set a domain on your server
 * Get the reCaptcha tokens
