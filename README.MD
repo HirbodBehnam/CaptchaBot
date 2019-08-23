@@ -32,7 +32,7 @@ Recaptcha V3 is different from all of the other captchas. It does not require th
 
 So how this bot works? At first you should define a minimum pass score for the users that request the captcha. At first the bot gets the user's score. It checks it with the minimum score, if it's less than it, _bot refuses to send the user the link or text_. So method is very strict. If the user does not achieve the minimum score, there is no way for user to get the link. On client side, then the user send the token to bot, bot send them a link to the server. After the user opens it, he must just wait for the captcha to give the user a score.
 
-If the user receives a low score this will be shown to him: `Unfortuatly you cannot access this right now.`
+If the user receives a low score this will be shown to him: `Unfortunately you are not worthy enough to access this right now.`
 ## Setting up the bot
 At really first you should download or build the bot according to the previous step. Then download the `config.json` file into the same directory as bot.
 ### Getting Bot Token

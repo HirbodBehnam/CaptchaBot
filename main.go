@@ -391,18 +391,13 @@ func homePage(writer http.ResponseWriter, request *http.Request) {
 		if buttonClicked {
 			if processRequest(request) {
 				a, _ := strconv.Atoi(id)
-				if CaptchaMode == 2 {
-					fmt.Fprint(writer, fmt.Sprintf(anAck, "Recaptcha was correct! Sent the code via telegram!"))
-					go sendValueWithBot(int64(a), token)
-				} else {
-					fmt.Fprint(writer, fmt.Sprintf(anAck, "Sent the code via telegram!"))
-					go sendValueWithBot(int64(a), token)
-				}
+				fmt.Fprint(writer, fmt.Sprintf(anAck, "Sent the code via telegram!"))
+				go sendValueWithBot(int64(a), token)
 			} else {
 				if CaptchaMode == 2 {
 					fmt.Fprintf(writer, fmt.Sprintf(anError, "Recaptcha was incorrect; try again."))
 				} else {
-					fmt.Fprintf(writer, fmt.Sprintf(anError, "Unfortuatly you cannot access this right now."))
+					fmt.Fprintf(writer, fmt.Sprintf(anError, "Unfortunately you are not worthy enough to access this right now."))
 				}
 			}
 		} else {
