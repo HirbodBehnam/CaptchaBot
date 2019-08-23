@@ -104,7 +104,7 @@ const (
 )
 const recaptchaURLLocal = "http://%s:%d/?chatid=%d&dbtoken=%s"
 const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
-const Version = "0.2.0 / Build 2"
+const Version = "1.0.0 / Build 3"
 
 func init() {
 	rand.Seed(time.Now().UnixNano()) //Make randoms, random
