@@ -1,5 +1,5 @@
 # Captcha Telegram Bot
-A bot to protect the texts or with a captcha.
+A bot to protect the texts or with a captcha or Google reCaptcha.
 ## Installing
 Go to [releases](https://github.com/HirbodBehnam/CaptchaBot/releases) and download one for your operating system. Then head to next part for setting up the bot
 ### Building From Source
@@ -11,6 +11,13 @@ go get github.com/boltdb/bolt
 ```
 Then build the program with
 `go build main.go database.go`
+## Demos
+### Normal Captcha
+![Demo Normal](https://media.giphy.com/media/Y3YD8y6kbep9oetbOm/giphy.gif)
+### ReCaptcha V2
+![Demo V2](https://media.giphy.com/media/h58ZKl4S2xvtxtzoDr/giphy.gif)
+### ReCaptcha V3
+![Demo V3](https://media.giphy.com/media/gkWoQtiAXOBeckSbpZ/giphy.gif)
 ## Setting up the bot
 Setting up the bot is not very hard and neither very easy. Here is a step to step guide to setup the bot.
 
