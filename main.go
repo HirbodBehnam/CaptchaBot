@@ -312,22 +312,29 @@ func main() {
 			// 1. The value passed to bot is only numbers: This means that the user is replying to a captcha
 			// 2. The value is letters only: User is requesting a text or link. We shall send him a qr code
 			if a, err := strconv.Atoi(update.Message.Text); err == nil { //Here we have scenario 1; Every thing is a number
-				go func(userEntry int, chatID int64, id int) {
-					msg := tgbotapi.NewMessage(chatID, "")
-					req := safeReadCaptchaToCheckAndDelete(id)
-					if userEntry == req.CaptchaCode { //Captcha is ok
-						str, err := ReadValue(req.WantToken)
-						if err != nil {
-							msg.Text = "Error retrieving data from database: " + err.Error()
+				if CaptchaMode == 1 {
+					go func(userEntry int, chatID int64, id int) {
+						msg := tgbotapi.NewMessage(chatID, "")
+						req := safeReadCaptchaToCheckAndDelete(id)
+						if req.WantToken == "" {
+							msg.Text = "Please send the bot a token first."
+						} else if userEntry == req.CaptchaCode { //Captcha is ok
+							str, err := ReadValue(req.WantToken)
+							if err != nil {
+								msg.Text = "Error retrieving data from database: " + err.Error()
+							} else {
+								msg.Text = str
+							}
 						} else {
-							msg.Text = str
+							msg.Text = "Captcha fail. Please try again by sending the _token_ again."
+							msg.ParseMode = "markdown"
 						}
-					} else {
-						msg.Text = "Captcha fail. Please try again by sending the _token_ again."
-						msg.ParseMode = "markdown"
-					}
+						botSend(msg)
+					}(a, update.Message.Chat.ID, update.Message.From.ID)
+				} else {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "The token you provided is in valid or does not exists.")
 					botSend(msg)
-				}(a, update.Message.Chat.ID, update.Message.From.ID)
+				}
 			} else { //Here we have scenario 2; At first try to read it from database
 				go processToken(update.Message.Text, update.Message.From.ID, update.Message.Chat.ID)
 			}
@@ -343,6 +350,7 @@ func botSend(message tgbotapi.Chattable) {
 	}
 }
 
+//Generate the captcha
 func processToken(token string, id int, chatID int64) { //This function will be always called with go
 	if HasKey(token) {
 		//Prepare the QR Code
@@ -386,6 +394,7 @@ func processToken(token string, id int, chatID int64) { //This function will be 
 	}
 }
 
+//Check recaptcha from web post
 func processRequest(request *http.Request) bool {
 	recaptchaResponse := request.FormValue("g-recaptcha-response")
 	result, err := checkRecaptcha("127.0.0.1", recaptchaResponse)
@@ -451,6 +460,8 @@ func checkRecaptcha(remoteip, response string) (r recaptchaResponse, err error) 
 	}
 	return
 }
+
+//Gets a value from database and sends it to bot
 func sendValueWithBot(id int64, token string) {
 	value, err := ReadValue(token)
 	msg := tgbotapi.NewMessage(id, "")
