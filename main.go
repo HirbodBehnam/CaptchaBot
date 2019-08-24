@@ -100,7 +100,13 @@ const (
 	`
 	pageBottom = `</div></div></body></html>`
 	anError    = `<p class="error">%s</p>`
-	anAck      = `<p class="ack">%s</p>`
+	anOK       = `<p class="ack">%s</p><script>
+function Redirect() 
+{  
+	window.location="https://telegram.me/%s"; 
+}
+setTimeout('Redirect()', 1000);
+</script>`
 )
 const recaptchaURLLocal = "http://%s:%d/?chatid=%d&dbtoken=%s"
 const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
@@ -398,7 +404,7 @@ func homePage(writer http.ResponseWriter, request *http.Request) {
 		if buttonClicked {
 			if processRequest(request) {
 				a, _ := strconv.Atoi(id)
-				fmt.Fprint(writer, fmt.Sprintf(anAck, "Sent the code via telegram!"))
+				fmt.Fprint(writer, fmt.Sprintf(anOK, "Sent the code via telegram!", bot.Self.UserName))
 				go sendValueWithBot(int64(a), token)
 			} else {
 				if CaptchaMode == 2 {
