@@ -253,7 +253,7 @@ func main() {
 								msg.DisableWebPagePreview = true
 							}
 						}
-						bot.Send(msg)
+						botSend(msg)
 					}(update.Message.Chat.ID)
 					continue
 				}
@@ -274,7 +274,7 @@ func main() {
 			default:
 				msg.Text = "I don't know that command"
 			}
-			bot.Send(msg)
+			botSend(msg)
 		} else {
 			if checkInArray(update.Message.From.ID, Config.Admins) { //If user is admin...
 				PageIn.mux.Lock()
@@ -290,7 +290,7 @@ func main() {
 						msg.Text = "Successfully created the text in database!\nThe key is `" + token + "` .\nAlso you can use this link to let the users start the bot directly:\nhttps://telegram.me/" + bot.Self.UserName + "?start=" + token + "\nShare it with users."
 						msg.ParseMode = "markdown"
 					}
-					bot.Send(msg)
+					botSend(msg)
 					continue //Continue to server other updates
 				case 2: //Admin whats to delete a token
 					PageIn.PageIn[update.Message.From.ID] = 0
@@ -303,7 +303,7 @@ func main() {
 						msg.Text = "Successfully deleted token `" + update.Message.Text + "` from database."
 						msg.ParseMode = "markdown"
 					}
-					bot.Send(msg)
+					botSend(msg)
 					continue
 				} //Otherwise admin way want to see a link
 				PageIn.mux.Unlock()
@@ -326,7 +326,7 @@ func main() {
 						msg.Text = "Captcha fail. Please try again by sending the _token_ again."
 						msg.ParseMode = "markdown"
 					}
-					bot.Send(msg)
+					botSend(msg)
 				}(a, update.Message.Chat.ID, update.Message.From.ID)
 			} else { //Here we have scenario 2; At first try to read it from database
 				go processToken(update.Message.Text, update.Message.From.ID, update.Message.Chat.ID)
@@ -335,7 +335,15 @@ func main() {
 	}
 }
 
-func processToken(token string, id int, chatID int64) { //This function will be called with go
+//Just handle errors here
+func botSend(message tgbotapi.Chattable) {
+	_, err := bot.Send(message)
+	if err != nil {
+		log.Println("Error on sending a message:", err.Error())
+	}
+}
+
+func processToken(token string, id int, chatID int64) { //This function will be always called with go
 	if HasKey(token) {
 		//Prepare the QR Code
 		switch CaptchaMode {
@@ -356,25 +364,25 @@ func processToken(token string, id int, chatID int64) { //This function will be 
 			if err := jpeg.Encode(&buf, qrImage.Paletted, nil); err != nil {
 				msg := tgbotapi.NewMessage(chatID, "Error on encoding captcha.")
 				log.Println("Error on encoding captcha.", err.Error())
-				bot.Send(msg)
+				botSend(msg)
 				return
 			}
 			file := tgbotapi.FileBytes{Bytes: buf.Bytes(), Name: strconv.FormatInt(int64(id), 10)}
 			msg := tgbotapi.NewPhotoUpload(chatID, file)
 			msg.Caption = "Please enter the number in this image\n/cancel to turn back"
-			bot.Send(msg)
+			botSend(msg)
 		case 2:
 			msg := tgbotapi.NewMessage(chatID, "Open this url and complete the captcha:\n"+fmt.Sprintf(recaptchaURLLocal, Config.Recaptcha.Domain, Config.Recaptcha.Port, chatID, token))
 			msg.DisableWebPagePreview = true
-			bot.Send(msg)
+			botSend(msg)
 		case 3:
 			msg := tgbotapi.NewMessage(chatID, "Open this url and wait:\n"+fmt.Sprintf(recaptchaURLLocal, Config.Recaptcha.Domain, Config.Recaptcha.Port, chatID, token))
 			msg.DisableWebPagePreview = true
-			bot.Send(msg)
+			botSend(msg)
 		}
 	} else { //The link is broken
 		msg := tgbotapi.NewMessage(chatID, "The token you provided is in valid or does not exists.")
-		_, _ = bot.Send(msg)
+		botSend(msg)
 	}
 }
 
@@ -451,7 +459,7 @@ func sendValueWithBot(id int64, token string) {
 	} else {
 		msg.Text = "Error getting value from database: " + err.Error()
 	}
-	bot.Send(msg)
+	botSend(msg)
 }
 
 //With mutex, read the captcha from CaptchaToCheck and delete the value after
