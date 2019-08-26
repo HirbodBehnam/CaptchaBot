@@ -24,7 +24,7 @@ type config struct {
 	Token     string
 	DBName    string
 	Admins    []int
-	Recaptcha recaptchaConfig `json:"recaptcha,nill"`
+	Recaptcha recaptchaConfig `json:"recaptcha"`
 }
 type recaptchaConfig struct {
 	V2         bool
