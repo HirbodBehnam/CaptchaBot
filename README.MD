@@ -1,5 +1,11 @@
 # Captcha Telegram Bot
 A bot to protect the texts or with a captcha or Google reCaptcha.
+## Features
+* **Near Easy Setup**: You can easily setup this bot and use it under 10 minutes (without reCaptcha; Signing up for reCaptcha and registering domain required more than 30 extra minutes)
+* **reCaptcha Support**: Beside a normal captcha you can use Google's Recaptcha for extra security. reCaptcha V2 and V3 are both supported.
+* **Deep Links**: With support of deeplinks, you can instantly send share a link that points to the token. Example: `https://telegram.me/testbot?start=thetoken`; This link will open the bot with the requested token.
+* **Small Code Base**: With small code base everyone can study the program.
+* **Multi-OS Support**: You can run this bot an _any_ os supported by goLang. You can even run in on Android.
 ## Installing
 Go to [releases](https://github.com/HirbodBehnam/CaptchaBot/releases) and download one for your operating system. Then head to next part for setting up the bot
 ### Building From Source
@@ -70,7 +76,7 @@ Before configuring the bot you should do three things:
 ##### Domain
 Domain is required in order to recaptcha work. You can use a free domain at [Now-DNS](https://now-dns.com/) and register the _domain_ (not the sub-domain) at the google admin console.
 ##### reCaptcha Tokens
-reCaptcha Works with 2 tokens: _Private Key_ and _Site Key_. To generate one and register go to [here](https://www.google.com/recaptcha/admin) and register. While registring, you will be asked to choose between reCaptcha V2 and V3; If you wish to create V3, just choose the radio button and continue; but If you want to choose the V2, make sure you choose `"I'm not a robot" Checkbox` radio button; You will be given a site key and private key. You need them for the config file.
+reCaptcha Works with 2 tokens: _Private Key_ and _Site Key_. To generate one and register go to [here](https://www.google.com/recaptcha/admin) and register. While registering, you will be asked to choose between reCaptcha V2 and V3; If you wish to create V3, just choose the radio button and continue; but If you want to choose the V2, make sure you choose `"I'm not a robot" Checkbox` radio button; You will be given a site key and private key. You need them for the config file.
 ##### Opening Firewall
 The bot will listen for http connections on a port. That port must be opened in your firewall.
 ##### Configuring Bot
