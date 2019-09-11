@@ -1,7 +1,7 @@
 # Captcha Telegram Bot
 A bot to protect the texts or with a captcha or Google reCaptcha.
 ## Features
-* **Nearly Easy Setup**: You can easily setup this bot and use it under 10 minutes (without reCaptcha; Signing up for reCaptcha and registering domain required more than 30 extra minutes)
+* **Nearly Easy Setup**: You can easily setup this bot and use it under 10 minutes (without reCaptcha; Signing up for reCaptcha and registering domain requires more than 30 minutes)
 * **reCaptcha Support**: Beside a normal captcha you can use Google's Recaptcha for extra security. reCaptcha V2 and V3 are both supported.
 * **Deep Links**: With support of deeplinks, you can instantly send share a link that points to the token. Example: `https://telegram.me/testbot?start=thetoken`; This link will open the bot with the requested token.
 * **Small Code Base**: With small code base everyone can study the program.
