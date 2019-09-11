@@ -5,12 +5,10 @@ import (
 	"github.com/boltdb/bolt"
 	"log"
 	"math/rand"
-	"sync"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-var mux sync.RWMutex
 var db *bolt.DB
 
 //https://zupzup.org/boltdb-example/
@@ -35,11 +33,13 @@ func LoadDB(dataBaseName string) error {
 	return nil
 }
 
+func CloseDB() {
+	_ = db.Close()
+}
+
 //Inserts a link into the database
 //Returns the ID for the link to be shared later
 func InsertValue(Value string) (string, error) {
-	mux.Lock()
-	defer mux.Unlock()
 	for {
 		key := generateRandomStringAsByte()
 		hasValue := false
@@ -71,14 +71,12 @@ func InsertValue(Value string) (string, error) {
 //Check if a key exists; On errors return false as well
 func HasKey(Key string) bool {
 	hasValue := false
-	mux.RLock()
 	//Check if the random exists in database
 	_ = db.View(func(tx *bolt.Tx) error {
 		check := tx.Bucket([]byte("DB")).Get([]byte(Key))
 		hasValue = check != nil
 		return nil
 	})
-	mux.RUnlock()
 	return hasValue
 }
 
@@ -87,7 +85,6 @@ func RemoveKey(Key string) error {
 	if !HasKey(Key) {
 		return fmt.Errorf("this token does not exits")
 	}
-	mux.Lock()
 	err := db.Update(func(tx *bolt.Tx) error {
 		err := tx.Bucket([]byte("DB")).Delete([]byte(Key))
 		if err != nil {
@@ -95,14 +92,12 @@ func RemoveKey(Key string) error {
 		}
 		return nil
 	})
-	mux.Unlock()
 	return err
 }
 
 //List all of the values
 func ListAllValues() (map[string]string, error) {
 	m := make(map[string]string)
-	mux.RLock()
 	err := db.View(func(tx *bolt.Tx) error {
 		err := tx.Bucket([]byte("DB")).ForEach(func(k, v []byte) error {
 			if len(v) > 100 {
@@ -114,14 +109,12 @@ func ListAllValues() (map[string]string, error) {
 		})
 		return err
 	})
-	mux.RUnlock()
 	return m, err
 }
 
 //Read the value from database
 func ReadValue(Key string) (string, error) {
 	var res string
-	mux.RLock()
 	err := db.View(func(tx *bolt.Tx) error {
 		check := tx.Bucket([]byte("DB")).Get([]byte(Key))
 		if check == nil {
@@ -130,7 +123,6 @@ func ReadValue(Key string) (string, error) {
 		res = string(check)
 		return nil
 	})
-	mux.RUnlock()
 	if err != nil {
 		return "", err
 	}

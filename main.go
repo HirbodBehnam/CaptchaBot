@@ -47,7 +47,7 @@ type sPageIn struct {
 	PageIn map[int]int
 }
 type sCaptchaToCheck struct {
-	mux            sync.Mutex //We write to it, or instantly delete it after reading from it
+	mux            sync.Mutex //We write to it, or instantly delete it after reading from it; So no need to RWMutex
 	CaptchaToCheck map[int]request
 }
 type recaptchaResponse struct {
@@ -110,7 +110,7 @@ setTimeout('Redirect()', 1000);
 )
 const recaptchaURLLocal = "http://%s:%d/?chatid=%d&dbtoken=%s"
 const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
-const Version = "1.1.0 / Build 4"
+const Version = "1.1.1 / Build 5"
 
 func init() {
 	rand.Seed(time.Now().UnixNano()) //Make randoms, random
@@ -169,6 +169,8 @@ func main() {
 	if err != nil {
 		panic("Cannot access database: " + err.Error())
 	}
+	defer CloseDB()
+
 	//Setup the bot
 	bot, err = tgbotapi.NewBotAPI(Config.Token)
 	if err != nil {
