@@ -110,7 +110,7 @@ setTimeout('Redirect()', 1000);
 )
 const recaptchaURLLocal = "http://%s:%d/?chatid=%d&dbtoken=%s"
 const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
-const Version = "1.1.1 / Build 5"
+const Version = "1.1.2 / Build 6"
 
 func init() {
 	rand.Seed(time.Now().UnixNano()) //Make randoms, random
@@ -289,7 +289,7 @@ func main() {
 					if err != nil {
 						msg.Text = "Error in inserting this string in database: " + err.Error()
 					} else {
-						msg.Text = "Successfully created the text in database!\nThe key is `" + token + "` .\nAlso you can use this link to let the users start the bot directly:\nhttps://telegram.me/" + bot.Self.UserName + "?start=" + token + "\nShare it with users."
+						msg.Text = "Successfully created the text in database!\nThe key is `" + token + "` .\nAlso you can use this link to let the users start the bot directly:\nhttps://telegram.me/" + escapeMarkdown(bot.Self.UserName) + "?start=" + token + "\nShare it with users."
 						msg.ParseMode = "markdown"
 					}
 					botSend(msg)
@@ -492,4 +492,13 @@ func checkInArray(value int, array []int) bool {
 		}
 	}
 	return false
+}
+
+//In case that anything have one of these chars it must be escaped when sending markdown
+func escapeMarkdown(str string) string {
+	chars := []string{"_", "*", "[", "`"}
+	for _, k := range chars {
+		str = strings.ReplaceAll(str, k, `\`+k)
+	}
+	return str
 }

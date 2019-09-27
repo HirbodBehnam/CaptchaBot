@@ -101,9 +101,9 @@ func ListAllValues() (map[string]string, error) {
 	err := db.View(func(tx *bolt.Tx) error {
 		err := tx.Bucket([]byte("DB")).ForEach(func(k, v []byte) error {
 			if len(v) > 100 {
-				m[string(k)] = string(v[:100]) + " *...* "
+				m[string(k)] = escapeMarkdown(string(v[:100])) + " *...* "
 			} else {
-				m[string(k)] = string(v)
+				m[string(k)] = escapeMarkdown(string(v))
 			}
 			return nil
 		})
